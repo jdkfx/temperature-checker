@@ -2,6 +2,10 @@
 #include <time.h>
 #include <WiFi.h>
 #include "Config.h"
+#include <Adafruit_SHT31.h>
+Adafruit_SHT31 Sht = Adafruit_SHT31();
+#include <Adafruit_BMP280.h>
+Adafruit_BMP280 Bmp;
 #define checkResetOn()  if(M5.Axp.GetBtnPress()==2){esp_restart();}
 
 void setup() {
@@ -40,6 +44,10 @@ void setup() {
     ds.Year = _tm.tm_year + 1900; ds.Month = _tm.tm_mon+1; ds.Date = _tm.tm_mday;
     M5.Rtc.SetTime(&ts); M5.Rtc.SetData(&ds);
   }
+
+  // 環境センサー
+  Sht.begin(0x44);
+  Bmp.begin(0x76);
 }
 
 void loop() {
@@ -52,6 +60,13 @@ void loop() {
   M5.Rtc.GetTime(&rtc_t);
   M5.Lcd.setCursor(0, 32);
   M5.Lcd.printf("Time %02d-%02d-%02d    ", rtc_t.Hours, rtc_t.Minutes, rtc_t.Seconds);
+
+  // 環境状態の確認
+  float tp = Sht.readTemperature();    // 温度
+  float hm = Sht.readHumidity();      // 湿度
+  float ps = Bmp.readPressure()*0.01;   // 気圧 hPa = Pa *0.01
+  M5.Lcd.setCursor(0, 48);
+  M5.Lcd.printf("%4.1f%cC %4.1f%% %6.1fhPa ", tp,0xf7,hm,ps);
   
   // バッテリー状態の確認
   float v,a,t;
