@@ -8,6 +8,7 @@ Adafruit_SHT31 Sht = Adafruit_SHT31();
 Adafruit_BMP280 Bmp;
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <IRsend.h>
 #define checkResetOn()  if(M5.Axp.GetBtnPress()==2){esp_restart();}
 
 // WEBサーバー
@@ -22,7 +23,7 @@ const String HTML_DIM1 ="<p><form action='' method='post'>監視温度:20<input 
 const String HTML_DIM2 =">35°C<input type='submit' value='設定'></form></p>";
 const String HTML_DIM3 ="<p><form action='' method='post'>監視湿度:0<input type='range' name='dim2' min=0 max=100 value=";
 const String HTML_DIM4 =">100％<input type='submit' value='設定'></form></p>";
-volatile uint8_t TempDim = 15;
+volatile uint8_t TempDim = 35;
 volatile uint8_t HumiDim = 100;
 
 void watchEnv(){
@@ -35,6 +36,10 @@ void watchEnv(){
   String mes=HTML_HEADER + HTML_DIM1 + String(TempDim) + HTML_DIM2 + HTML_DIM3 + String(HumiDim) + HTML_DIM4 +HTML_FOOTER;
   Srv.send(200, "text/html", mes);
 }
+
+// 外部LEDランプ
+IRsend Irs(9);
+const uint32_t IR_CCODE = 0x0080;
 
 // ブザー
 const int spPin = 0;
@@ -94,6 +99,9 @@ void setup() {
   // 環境センサー
   Sht.begin(0x44);
   Bmp.begin(0x76);
+
+  // 外部LEDランプ
+  Irs.begin();
 }
 
 void loop() {
@@ -138,7 +146,23 @@ void loop() {
     delay(100);
     ledcWriteNote(spPWMch,NOTE_E,6);
     delay(500);
-    ledcWrite(spPWMch,0);
+    ledcWrite(spPWMch,0); 
+  }
+
+  // 監視温度より高ければランプを赤く光らせる
+  if(TempDim < tp){
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x12));
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x04));
+  } else {
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x1a));
+  }
+
+  // 監視湿度より高ければランプを青く光らせる
+  if (HumiDim < hm) {
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x12));
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x06));
+  } else {
+    Irs.sendNEC(Irs.encodeNEC(IR_CCODE, 0x1a));
   }
 
   // WEBサーバー
