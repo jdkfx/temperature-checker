@@ -15,6 +15,10 @@ const char* Host = "localhost";
 WebServer Srv(80);
 char SrvMsg[256] = "hostname,vol,temp";
 
+// ブザー
+const int spPin = 0;
+const int spPWMch = 0;
+
 void setup() {
   // 文字列の表示
   M5.begin();
@@ -27,6 +31,10 @@ void setup() {
   M5.Lcd.setTextColor(YELLOW,BLUE);
   M5.Lcd.setTextFont(2);
   M5.Lcd.setTextSize(1);
+
+  // ブザー
+  ledcSetup(spPWMch,5000,13);
+  ledcAttachPin(spPin,spPWMch);
 
   // WiFiとの接続
   M5.Lcd.setCursor(0,0);
@@ -67,6 +75,16 @@ void setup() {
 }
 
 void loop() {
+  // ブザー
+  M5.update();
+  if(M5.BtnB.wasPressed()){
+    ledcWriteNote(spPWMch,NOTE_B,5);
+    delay(100);
+    ledcWriteNote(spPWMch,NOTE_E,6);
+    delay(500);
+    ledcWrite(spPWMch,0);
+  }
+  
   // 日時の表示
   RTC_DateTypeDef rtc_d;
   M5.Rtc.GetData(&rtc_d);
