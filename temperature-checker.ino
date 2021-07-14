@@ -14,6 +14,27 @@ Adafruit_BMP280 Bmp;
 const char* Host = "localhost";
 WebServer Srv(80);
 char SrvMsg[256] = "hostname,vol,temp";
+// HTML
+const String HTML_HEADER ="<!doctype html><html><head><meta charset='UTF-8'/>\
+  <meta name='viewport' content='width=device-width'/></head><body>";
+const String HTML_FOOTER ="</body></html>";
+const String HTML_DIM1 ="<p><form action='' method='post'>監視温度:20<input type='range' name='dim1' min=20 max=35 value=";
+const String HTML_DIM2 =">35°C<input type='submit' value='設定'></form></p>";
+const String HTML_DIM3 ="<p><form action='' method='post'>監視湿度:0<input type='range' name='dim2' min=0 max=100 value=";
+const String HTML_DIM4 =">100％<input type='submit' value='設定'></form></p>";
+volatile uint8_t TempDim = 15;
+volatile uint8_t HumiDim = 100;
+
+void watchEnv(){
+  if (Srv.method() == HTTP_POST) {
+    String val1 = Srv.arg("dim1");
+    if(val1!="") TempDim=val1.toInt();
+    String val2 = Srv.arg("dim2");
+    if(val2!="") HumiDim=val2.toInt();
+  }
+  String mes=HTML_HEADER + HTML_DIM1 + String(TempDim) + HTML_DIM2 + HTML_DIM3 + String(HumiDim) + HTML_DIM4 +HTML_FOOTER;
+  Srv.send(200, "text/html", mes);
+}
 
 // ブザー
 const int spPin = 0;
@@ -66,6 +87,7 @@ void setup() {
     Srv.sendHeader("Access-Control-Allow-Origin", "*");
     Srv.send(200, "text/plain", SrvMsg);
   });
+  Srv.on("/watch", watchEnv);
   Srv.begin();
   MDNS.addService("http", "tcp", 80);
 
@@ -109,6 +131,15 @@ void loop() {
   t = M5.Axp.GetTempInAXP192(); // 温度
   M5.Lcd.setCursor(0,64);
   M5.Lcd.printf("Bat %3.1fV %5.1fmA %4.1fC ",v,a,t);
+
+  // 監視温度、監視湿度との比較
+  if(TempDim < tp || HumiDim < hm){
+    ledcWriteNote(spPWMch,NOTE_B,5);
+    delay(100);
+    ledcWriteNote(spPWMch,NOTE_E,6);
+    delay(500);
+    ledcWrite(spPWMch,0);
+  }
 
   // WEBサーバー
   sprintf(SrvMsg,"%s,%4.1f%cC %4.1f%% %6.1fhPa", Host,tp,0xf7,hm,ps);
