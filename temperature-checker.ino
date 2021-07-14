@@ -6,7 +6,14 @@
 Adafruit_SHT31 Sht = Adafruit_SHT31();
 #include <Adafruit_BMP280.h>
 Adafruit_BMP280 Bmp;
+#include <WebServer.h>
+#include <ESPmDNS.h>
 #define checkResetOn()  if(M5.Axp.GetBtnPress()==2){esp_restart();}
+
+// WEBサーバー
+const char* Host = "localhost";
+WebServer Srv(80);
+char SrvMsg[256] = "hostname,vol,temp";
 
 void setup() {
   // 文字列の表示
@@ -45,6 +52,15 @@ void setup() {
     M5.Rtc.SetTime(&ts); M5.Rtc.SetData(&ds);
   }
 
+  // WEBサーバー
+  MDNS.begin(Host);
+  Srv.on("/", HTTP_GET, [](){
+    Srv.sendHeader("Access-Control-Allow-Origin", "*");
+    Srv.send(200, "text/plain", SrvMsg);
+  });
+  Srv.begin();
+  MDNS.addService("http", "tcp", 80);
+
   // 環境センサー
   Sht.begin(0x44);
   Bmp.begin(0x76);
@@ -75,6 +91,10 @@ void loop() {
   t = M5.Axp.GetTempInAXP192(); // 温度
   M5.Lcd.setCursor(0,64);
   M5.Lcd.printf("Bat %3.1fV %5.1fmA %4.1fC ",v,a,t);
+
+  // WEBサーバー
+  sprintf(SrvMsg,"%s,%4.1f%cC %4.1f%% %6.1fhPa", Host,tp,0xf7,hm,ps);
+  Srv.handleClient();
 
   // 電源のリセット
   checkResetOn();
